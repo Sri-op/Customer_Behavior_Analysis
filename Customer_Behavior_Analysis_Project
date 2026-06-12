@@ -1,0 +1,198 @@
+import pandas as pd
+
+df = pd.read_csv(
+"/kaggle/input/datasets/bhanupratapbiswas/customer-behavior-analysis/ecommerce_customer_data_large.csv"
+)
+
+df.head()
+df = pd.read_csv("/kaggle/input/datasets/bhanupratapbiswas/customer-behavior-analysis/ecommerce_customer_data_large.csv")
+print(df.shape)
+print(df.info())
+print(df.describe())
+
+# Remove duplicates
+df.drop_duplicates(inplace=True)
+
+# Check missing values
+print(df.isnull().sum())
+
+# Fill missing values
+df.ffill(inplace=True)
+
+# Verify
+print(df.isnull().sum())
+df["Total_Spending"] = df["Total Purchase Amount"]
+
+df.head()
+snapshot = df["Purchase Date"].max()
+
+rfm = df.groupby(
+    "Customer ID"
+).agg({
+
+"Purchase Date":
+lambda x:
+(snapshot - x.max()).days,
+
+"Customer ID":
+"count",
+
+"Total_Spending":
+"sum"
+
+})
+rfm.columns = [
+"Recency",
+"Frequency",
+"Monetary"
+]
+
+rfm.head()
+print(rfm.head())
+rfm["R_Score"]=pd.qcut(
+    rfm["Recency"],
+    4,
+    labels=[4,3,2,1]
+)
+
+rfm["F_Score"]=pd.qcut(
+    rfm["Frequency"],
+    4,
+    labels=[1,2,3,4]
+)
+
+rfm["M_Score"]=pd.qcut(
+    rfm["Monetary"],
+    4,
+    labels=[1,2,3,4]
+)
+
+rfm["RFM_Score"]=(
+    rfm["R_Score"].astype(str)+
+    rfm["F_Score"].astype(str)+
+    rfm["M_Score"].astype(str)
+)
+
+rfm.head()
+def segment(score):
+
+    score = int(score)
+
+    if score >= 444:
+        return "Champions"
+
+    elif score >= 333:
+        return "Loyal Customers"
+
+    elif score >= 222:
+        return "Potential Customers"
+
+    else:
+        return "At Risk"
+
+
+rfm["Segment"] = (
+    rfm["RFM_Score"]
+    .apply(segment)
+)
+
+print(rfm["Segment"].value_counts())
+print(rfm.columns)
+
+
+#CHARTS
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+plt.figure(figsize=(8,6))
+
+sns.countplot(
+    x="Segment",
+    data=rfm,
+    order=rfm["Segment"].value_counts().index
+)
+
+plt.title("Customer Segments")
+
+plt.xticks(rotation=20)
+
+plt.show()
+
+
+top = df.groupby(
+    "Product Category"
+)["Total_Spending"].sum()
+
+top = top.sort_values(
+    ascending=False
+).head(10)
+import matplotlib.pyplot as plt
+
+plt.figure(figsize=(10,6))
+
+top.plot(
+    kind="bar"
+)
+
+plt.title(
+    "Top Product Categories"
+)
+
+plt.xlabel(
+    "Product Category"
+)
+
+plt.ylabel(
+    "Total Spending"
+)
+
+plt.xticks(rotation=45)
+
+plt.show()
+
+df["Month"]=df[
+"Purchase Date"
+].dt.month
+
+monthly=df.groupby(
+"Month"
+)["Total_Spending"].sum()
+
+monthly.plot(
+kind="line",
+figsize=(10,5)
+)
+
+plt.title(
+"Monthly Purchase Trend"
+)
+
+plt.ylabel(
+"Revenue"
+)
+
+plt.show()
+
+rfm["Churn_Risk"]=np.where(
+rfm["Recency"]>60,
+"High Risk",
+"Active"
+)
+
+sns.countplot(
+x="Churn_Risk",
+data=rfm
+)
+
+plt.title(
+"Customer Retention"
+)
+
+plt.show()
+
+print(
+rfm.groupby(
+"Segment"
+)["Monetary"]
+.mean()
+)
